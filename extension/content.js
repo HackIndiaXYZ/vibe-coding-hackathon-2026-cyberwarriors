@@ -1458,3 +1458,1050 @@ function injectActivatedBadge(platform) {
         setTimeout(() => badge.remove(), 320);
     });
 }
+
+// ============ PREMIUM LINK INTERCEPTION ============
+
+// Store intercepted link data
+let interceptedLink = null;
+let analysisInProgress = false;
+
+// Premium popup for suspicious link clicks
+function showPremiumLinkPopup(url, threatData) {
+    // Remove existing premium popup if any
+    const existing = document.getElementById('cs-premium-link-popup');
+    if (existing) existing.remove();
+
+    const isScam = threatData.status === 'scam' || threatData.isUrlScam === true;
+    const riskScore = Math.round((threatData.confidence || 0) * 100);
+    const threats = threatData.threats || [];
+    
+    const accentColor = isScam ? '#ff4444' : '#ffb300';
+    const accentGlow = isScam ? 'rgba(255,68,68,0.4)' : 'rgba(255,179,0,0.4)';
+    const accentDim = isScam ? 'rgba(255,68,68,0.10)' : 'rgba(255,179,0,0.10)';
+    
+    const threatIcon = isScam ? '🚨' : '⚠️';
+    const threatLabel = isScam ? 'HIGHLY DANGEROUS' : 'SUSPICIOUS';
+    const threatDesc = isScam ? 'This link is confirmed to be malicious' : 'This link shows scam indicators';
+    
+    const threatRows = threats.length
+        ? threats.map(t => `
+            <div style="display:flex;align-items:center;gap:8px;padding:4px 0;">
+                <span style="color:${accentColor};font-size:10px;">●</span>
+                <span style="color:#ccd6f6;font-size:11px;">${t}</span>
+            </div>`).join('')
+        : `<div style="color:#8892b0;font-size:11px;">Pattern-based threat detection</div>`;
+
+    // Create premium popup overlay
+    const overlay = document.createElement('div');
+    overlay.id = 'cs-premium-link-popup';
+    overlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(0, 0, 0, 0.85);
+        backdrop-filter: blur(12px);
+        z-index: 999999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        animation: cs-fade-in 0.3s ease-out;
+    `;
+
+    // Create popup content
+    const popup = document.createElement('div');
+    popup.style.cssText = `
+        background: linear-gradient(145deg, #1a1f2e, #0f1419);
+        border: 2px solid ${accentColor};
+        border-radius: 18px;
+        padding: 0;
+        max-width: 480px;
+        width: 92%;
+        box-shadow: 0 25px 70px ${accentGlow}, 0 0 140px ${accentColor}33;
+        animation: cs-slide-up 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        position: relative;
+        overflow: hidden;
+    `;
+
+    popup.innerHTML = `
+        <!-- Animated gradient border -->
+        <div style="
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, ${accentColor}, #7b2ff7, #00b8ff, ${accentColor});
+            background-size: 200% 100%;
+            animation: cs-border-scan 3s linear infinite;
+        "></div>
+
+        <!-- Analysis Status Bar -->
+        <div id="cs-analysis-status" style="
+            position: absolute;
+            top: 3px;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #00ff88, #00b8ff, #7b2ff7);
+            background-size: 200% 100%;
+            animation: cs-analysis-progress 2s ease-in-out infinite;
+            display: none;
+        "></div>
+
+        <!-- Scan beam effect -->
+        <div style="
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background: linear-gradient(to bottom, transparent, ${accentColor}15, transparent);
+            animation: cs-scan-beam 3s ease-in-out 0.5s 2;
+            pointer-events: none;
+        "></div>
+
+        <div style="padding: 28px 28px 24px; position: relative; z-index: 2;">
+            <!-- Header -->
+            <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 20px;">
+                <div id="cs-header-icon" style="
+                    width: 56px;
+                    height: 56px;
+                    border-radius: 16px;
+                    background: ${accentDim};
+                    border: 2px solid ${accentColor};
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 28px;
+                    animation: cs-icon-pulse 2s ease-in-out infinite;
+                    flex-shrink: 0;
+                ">${threatIcon}</div>
+                <div>
+                    <div style="
+                        font-size: 16px;
+                        font-weight: 900;
+                        color: ${accentColor};
+                        letter-spacing: 1.2px;
+                        text-transform: uppercase;
+                        margin-bottom: 4px;
+                    ">${threatLabel}</div>
+                    <div style="font-size: 13px; color: #5a6a8a; font-weight: 600;">
+                        ⚡ CyberShield Premium Protection
+                    </div>
+                </div>
+            </div>
+
+            <!-- Analysis Section -->
+            <div id="cs-analysis-section" style="
+                background: rgba(0, 255, 136, 0.05);
+                border: 1px solid rgba(0, 255, 136, 0.2);
+                border-radius: 14px;
+                padding: 18px;
+                margin-bottom: 20px;
+                display: none;
+            ">
+                <div style="display: flex; align-items: center; gap: 14px; margin-bottom: 14px;">
+                    <div style="
+                        width: 26px;
+                        height: 26px;
+                        border: 2px solid #00ff88;
+                        border-radius: 50%;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        animation: cs-spin 1s linear infinite;
+                    ">
+                        <div style="
+                            width: 9px;
+                            height: 9px;
+                            background: #00ff88;
+                            border-radius: 50%;
+                        "></div>
+                    </div>
+                    <div style="font-size: 14px; font-weight: 700; color: #00ff88;">
+                        🔍 BEHAVIORAL ANALYSIS IN PROGRESS
+                    </div>
+                </div>
+                <div id="cs-analysis-details" style="font-size: 12px; color: #8892b0; line-height: 1.6;">
+                    Scanning target content for malicious elements...
+                </div>
+            </div>
+
+            <!-- Risk Score -->
+            <div style="margin-bottom: 20px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <span style="font-size: 13px; color: #5a6a8a; letter-spacing: 1.2px; text-transform: uppercase;">Threat Level</span>
+                    <span id="cs-risk-score" style="font-size: 20px; font-weight: 900; color: ${accentColor};">${riskScore}<span style="font-size: 12px; color: #5a6a8a;">/100</span></span>
+                </div>
+                <div style="height: 10px; background: rgba(255,255,255,0.08); border-radius: 99px; overflow: hidden;">
+                    <div id="cs-risk-bar" style="
+                        height: 100%;
+                        width: ${riskScore}%;
+                        background: linear-gradient(90deg, ${isScam ? '#ff4444,#dc2626' : '#ffb300,#ff8c00'});
+                        border-radius: 99px;
+                        box-shadow: 0 0 25px ${accentColor};
+                        animation: cs-risk-fill 1.2s ease-out;
+                    "></div>
+                </div>
+            </div>
+
+            <!-- URL Display -->
+            <div style="margin-bottom: 20px;">
+                <div style="font-size: 12px; color: #5a6a8a; letter-spacing: 1.2px; text-transform: uppercase; margin-bottom: 8px;">Detected URL</div>
+                <div style="
+                    background: rgba(255,255,255,0.04);
+                    border: 1px solid rgba(255,255,255,0.1);
+                    border-radius: 12px;
+                    padding: 14px;
+                    font-family: 'Consolas', 'Monaco', monospace;
+                    font-size: 13px;
+                    color: #ff6b6b;
+                    word-break: break-all;
+                    line-height: 1.5;
+                ">${url}</div>
+            </div>
+
+            <!-- Initial Threat Details -->
+            <div id="cs-initial-threats" style="
+                background: rgba(255,255,255,0.03);
+                border: 1px solid rgba(255,255,255,0.08);
+                border-radius: 14px;
+                padding: 18px;
+                margin-bottom: 20px;
+            ">
+                <div style="font-size: 12px; color: #5a6a8a; letter-spacing: 1.2px; text-transform: uppercase; margin-bottom: 10px;">🔍 Initial Analysis</div>
+                <div style="color: #ccd6f6; font-size: 13px; margin-bottom: 10px; font-weight: 600;">${threatDesc}</div>
+                ${threatRows}
+            </div>
+
+            <!-- Deep Analysis Results (Hidden Initially) -->
+            <div id="cs-deep-analysis" style="
+                background: rgba(0, 255, 136, 0.03);
+                border: 1px solid rgba(0, 255, 136, 0.1);
+                border-radius: 14px;
+                padding: 18px;
+                margin-bottom: 20px;
+                display: none;
+            ">
+                <div style="font-size: 12px; color: #00ff88; letter-spacing: 1.2px; text-transform: uppercase; margin-bottom: 10px;">🧬 Deep Behavioral Analysis</div>
+                <div id="cs-deep-results" style="color: #ccd6f6; font-size: 13px; line-height: 1.6;">
+                    Analysis in progress...
+                </div>
+            </div>
+
+            <!-- Warning Message -->
+            <div style="
+                background: ${accentDim};
+                border: 1px solid ${accentColor}44;
+                border-radius: 14px;
+                padding: 18px;
+                margin-bottom: 24px;
+            ">
+                <div style="display: flex; align-items: flex-start; gap: 12px;">
+                    <span style="font-size: 20px; flex-shrink: 0;">⛔</span>
+                    <div>
+                        <div style="font-size: 13px; font-weight: 700; color: ${accentColor}; margin-bottom: 6px;">SECURITY WARNING</div>
+                        <div style="font-size: 12px; color: #ccd6f6; line-height: 1.6;">
+                            This link may lead to phishing, malware, or fraud. Your personal and financial information could be at risk.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div style="display: flex; gap: 14px;">
+                <button id="cs-go-back" style="
+                    flex: 1;
+                    padding: 16px 20px;
+                    background: linear-gradient(135deg, #10b981, #059669);
+                    border: 2px solid #10b981;
+                    border-radius: 14px;
+                    color: white;
+                    font-weight: 800;
+                    font-size: 14px;
+                    cursor: pointer;
+                    letter-spacing: 1px;
+                    text-transform: uppercase;
+                    transition: all 0.3s;
+                    box-shadow: 0 6px 25px rgba(16, 185, 129, 0.4);
+                ">🔒 GO BACK (SAFE)</button>
+                
+                <button id="cs-proceed-anyway" style="
+                    flex: 1;
+                    padding: 16px 20px;
+                    background: linear-gradient(135deg, ${accentDim}, rgba(255,255,255,0.05));
+                    border: 2px solid ${accentColor};
+                    border-radius: 14px;
+                    color: ${accentColor};
+                    font-weight: 800;
+                    font-size: 14px;
+                    cursor: pointer;
+                    letter-spacing: 1px;
+                    text-transform: uppercase;
+                    transition: all 0.3s;
+                ">⚠️ PROCEED (RISK)</button>
+            </div>
+        </div>
+    `;
+
+    // Add CSS animations
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes cs-fade-in {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes cs-slide-up {
+            from { 
+                opacity: 0;
+                transform: translateY(40px) scale(0.95);
+            }
+            to { 
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+        @keyframes cs-border-scan {
+            0% { background-position: 0% 50%; }
+            100% { background-position: 200% 50%; }
+        }
+        @keyframes cs-scan-beam {
+            0%, 100% { opacity: 0; transform: translateY(-20px); }
+            50% { opacity: 1; transform: translateY(20px); }
+        }
+        @keyframes cs-icon-pulse {
+            0%, 100% { transform: scale(1); box-shadow: 0 0 20px ${accentColor}40; }
+            50% { transform: scale(1.05); box-shadow: 0 0 30px ${accentColor}60; }
+        }
+        @keyframes cs-risk-fill {
+            from { width: 0%; }
+        }
+        @keyframes cs-analysis-progress {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+        @keyframes cs-spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        #cs-go-back:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 25px rgba(16, 185, 129, 0.4);
+        }
+        #cs-proceed-anyway:hover {
+            transform: translateY(-2px);
+            background: linear-gradient(135deg, ${accentColor}33, ${accentColor}22);
+            box-shadow: 0 6px 25px ${accentColor}40;
+        }
+    `;
+
+    document.head.appendChild(style);
+    overlay.appendChild(popup);
+    document.body.appendChild(overlay);
+
+    // Store intercepted link
+    interceptedLink = url;
+
+    // Start behavioral analysis
+    startBehavioralAnalysis(url, threatData);
+
+    // Add event listeners
+    const goBackBtn = document.getElementById('cs-go-back');
+    const proceedBtn = document.getElementById('cs-proceed-anyway');
+
+    if (goBackBtn) {
+        goBackBtn.addEventListener('click', () => {
+            overlay.style.animation = 'cs-fade-in 0.3s ease-out reverse';
+            setTimeout(() => {
+                overlay.remove();
+                interceptedLink = null;
+                analysisInProgress = false;
+            }, 300);
+        });
+    }
+
+    if (proceedBtn) {
+        proceedBtn.addEventListener('click', () => {
+            overlay.style.animation = 'cs-fade-in 0.3s ease-out reverse';
+            setTimeout(() => {
+                overlay.remove();
+                // Open the link in a new tab (safer approach)
+                window.open(interceptedLink, '_blank', 'noopener,noreferrer');
+                interceptedLink = null;
+                analysisInProgress = false;
+            }, 300);
+        });
+    }
+
+    // Close on overlay click (outside popup)
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) {
+            goBackBtn.click();
+        }
+    });
+}
+
+// Intercept suspicious link clicks - ENHANCED for IMMEDIATE blocking
+function setupLinkInterception() {
+    console.log('🛡️ Setting up IMMEDIATE link interception for ALL suspicious links');
+    
+    // Method 1: Capture phase click interception (highest priority)
+    document.addEventListener('click', (e) => {
+        // Find the closest link element (works with nested elements)
+        const link = e.target.closest('a[href]');
+        if (!link) return;
+
+        const url = link.href;
+                console.log('🔗 Link clicked:', url);
+        
+        // Enhanced suspicious URL detection
+        if (isSuspiciousUrl(url)) {
+            console.log('⚠️ Suspicious link detected - BLOCKING immediately');
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            
+            // Analyze the URL for detailed threat data
+            const threatData = analyzeUrlThreat(url);
+            
+            // Show premium popup with go back/proceed options
+            showPremiumLinkPopup(url, threatData);
+            return false;
+        }
+    }, true); // Use capture phase to intercept BEFORE any other handlers
+
+    // Method 2: Mousedown interception (catches before click)
+    document.addEventListener('mousedown', (e) => {
+        const link = e.target.closest('a[href]');
+        if (!link) return;
+
+        const url = link.href;
+        if (isSuspiciousUrl(url)) {
+            console.log('🖱️ Mousedown on suspicious link - PRE-BLOCKING');
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            
+            const threatData = analyzeUrlThreat(url);
+            showPremiumLinkPopup(url, threatData);
+            return false;
+        }
+    }, true);
+
+    // Method 3: Touch start interception (for mobile)
+    document.addEventListener('touchstart', (e) => {
+        const link = e.target.closest('a[href]');
+        if (!link) return;
+
+        const url = link.href;
+        if (isSuspiciousUrl(url)) {
+            console.log('📱 Touch on suspicious link - PRE-BLOCKING');
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            
+            const threatData = analyzeUrlThreat(url);
+            showPremiumLinkPopup(url, threatData);
+            return false;
+        }
+    }, true);
+
+    // Method 4: Override link click behavior for existing suspicious links
+    function overrideSuspiciousLinks() {
+        const allLinks = document.querySelectorAll('a[href]');
+        allLinks.forEach(link => {
+            if (isSuspiciousUrl(link.href)) {
+                // Store original href
+                const originalHref = link.href;
+                
+                // Replace href with javascript:void(0) to prevent default navigation
+                link.setAttribute('data-original-href', originalHref);
+                link.href = 'javascript:void(0)';
+                
+                // Add click handler that shows popup
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    e.stopImmediatePropagation();
+                    
+                    console.log('🔗 Overridden suspicious link clicked:', originalHref);
+                    const threatData = analyzeUrlThreat(originalHref);
+                    showPremiumLinkPopup(originalHref, threatData);
+                    return false;
+                }, true);
+                
+                // Visual indicators
+                link.style.borderBottom = '2px dotted #ff4444';
+                link.style.position = 'relative';
+                link.style.cursor = 'not-allowed';
+                link.title = '⚠️ CyberShield: Suspicious link - Click for protection options';
+            }
+        });
+    }
+
+    // Method 5: Monitor dynamically added links and override them immediately
+    const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+            mutation.addedNodes.forEach((node) => {
+                if (node.nodeType === 1) { // Element node
+                    // Find all links in newly added content
+                    const links = node.querySelectorAll('a[href]');
+                    links.forEach(link => {
+                        if (isSuspiciousUrl(link.href)) {
+                            console.log('� New suspicious link detected - OVERRIDING immediately');
+                            const originalHref = link.href;
+                            link.setAttribute('data-original-href', originalHref);
+                            link.href = 'javascript:void(0)';
+                            
+                            link.addEventListener('click', (e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                e.stopImmediatePropagation();
+                                
+                                const threatData = analyzeUrlThreat(originalHref);
+                                showPremiumLinkPopup(originalHref, threatData);
+                                return false;
+                            }, true);
+                            
+                            // Visual styling
+                            link.style.borderBottom = '2px dotted #ff4444';
+                            link.style.cursor = 'not-allowed';
+                            link.title = '⚠️ CyberShield: Suspicious link - Click for protection options';
+                        }
+                    });
+                }
+            });
+        });
+    });
+
+    // Start monitoring for new links
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true
+    });
+
+    // Process existing links immediately
+    overrideSuspiciousLinks();
+    
+    // Re-process links periodically to catch any missed ones
+    setInterval(overrideSuspiciousLinks, 2000);
+    
+    console.log('🛡️ Multi-layer link interception activated - Links blocked BEFORE access');
+}
+
+// Process all existing links on the page
+function processExistingLinks() {
+    const allLinks = document.querySelectorAll('a[href]');
+    console.log(`🔍 Processing ${allLinks.length} existing links for suspicious patterns`);
+    
+    let suspiciousCount = 0;
+    allLinks.forEach(link => {
+        if (isSuspiciousUrl(link.href)) {
+            suspiciousCount++;
+            // Add visual indicator for suspicious links
+            link.style.borderBottom = '2px dotted #ff4444';
+            link.style.position = 'relative';
+            
+            // Add hover warning
+            link.addEventListener('mouseenter', () => {
+                if (!link.querySelector('.cs-suspicious-indicator')) {
+                    const indicator = document.createElement('span');
+                    indicator.className = 'cs-suspicious-indicator';
+                    indicator.textContent = '⚠️';
+                    indicator.style.cssText = `
+                        position: absolute;
+                        top: -12px;
+                        right: -8px;
+                        background: #ff4444;
+                        color: white;
+                        border-radius: 50%;
+                        width: 16px;
+                        height: 16px;
+                        font-size: 10px;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        z-index: 1000;
+                        pointer-events: none;
+                    `;
+                    link.style.position = 'relative';
+                    link.appendChild(indicator);
+                }
+            });
+        }
+    });
+    
+    console.log(`⚠️ Found ${suspiciousCount} suspicious links on current page`);
+}
+
+// Check if URL is suspicious
+function isSuspiciousUrl(url) {
+    const urlLower = url.toLowerCase();
+    
+    // Check against suspicious patterns
+    for (const category of Object.values(suspiciousUrlPatterns)) {
+        for (const pattern of category) {
+            if (urlLower.includes(pattern.toLowerCase())) {
+                return true;
+            }
+        }
+    }
+    
+    // Additional heuristic checks
+    if (urlLower.includes('http') && (
+        urlLower.match(/[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}/) || // IP addresses
+        urlLower.match(/bit\.ly|tinyurl|goo\.gl|ow\.ly|short\.link|t\.me|tg\.me/) || // URL shorteners
+        urlLower.match(/paypal-verify|amazon-secure|google-verify|apple-id-verify/) // Impersonation
+    )) {
+        return true;
+    }
+    
+    return false;
+}
+
+// Analyze URL for threat data
+function analyzeUrlThreat(url) {
+    const urlLower = url.toLowerCase();
+    const threats = [];
+    let confidence = 0.5;
+    let status = 'suspicious';
+
+    // Check for specific threat patterns
+    if (urlLower.match(/bit\.ly|tinyurl|goo\.gl|ow\.ly|short\.link|t\.me|tg\.me/)) {
+        threats.push('URL shortener service (commonly used in scams)');
+        confidence += 0.2;
+    }
+
+    if (urlLower.match(/paypal-verify|amazon-secure|google-verify|apple-id-verify/)) {
+        threats.push('Brand impersonation attempt');
+        confidence += 0.3;
+        status = 'scam';
+    }
+
+    if (urlLower.match(/free-recharge|claim-prize|win-prize|lucky-draw|cash-reward/)) {
+        threats.push('Fake prize/reward scam');
+        confidence += 0.25;
+        status = 'scam';
+    }
+
+    if (urlLower.match(/[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}/)) {
+        threats.push('Direct IP address (hides true domain)');
+        confidence += 0.2;
+    }
+
+    if (urlLower.match(/verify-account|confirm-now|urgent-action|limited-time/)) {
+        threats.push('Urgency tactics (scam indicator)');
+        confidence += 0.15;
+    }
+
+    confidence = Math.min(confidence, 0.95);
+    if (confidence > 0.7) status = 'scam';
+
+    return {
+        status,
+        confidence,
+        threats,
+        isUrlScam: status === 'scam'
+    };
+}
+
+// Initialize link interception when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupLinkInterception);
+} else {
+    setupLinkInterception();
+}
+
+console.log(' Cyber Shield ready and monitoring');
+
+// ============ PREMIUM BEHAVIORAL ANALYSIS ============
+
+// Premium Behavioral Analysis System
+async function startBehavioralAnalysis(url, initialThreatData) {
+    if (analysisInProgress) return;
+    analysisInProgress = true;
+
+    const analysisSection = document.getElementById('cs-analysis-section');
+    const analysisDetails = document.getElementById('cs-analysis-details');
+    const deepAnalysisDiv = document.getElementById('cs-deep-analysis');
+    const deepResults = document.getElementById('cs-deep-results');
+    const riskScore = document.getElementById('cs-risk-score');
+    const riskBar = document.getElementById('cs-risk-bar');
+    const headerIcon = document.getElementById('cs-header-icon');
+    const analysisStatus = document.getElementById('cs-analysis-status');
+
+    // Show analysis section and status bar
+    if (analysisSection) analysisSection.style.display = 'block';
+    if (analysisStatus) analysisStatus.style.display = 'block';
+
+    try {
+        // Step 1: URL Structure Analysis
+        updateAnalysisStatus("Analyzing URL structure and domain reputation...");
+        await sleep(800);
+
+        // Step 2: Content Preview Analysis (Safe Fetch)
+        updateAnalysisStatus("Safely fetching content preview...");
+        const contentAnalysis = await analyzeContentSafely(url);
+        
+        // Step 3: Behavioral Pattern Analysis
+        updateAnalysisStatus("Analyzing behavioral patterns and threats...");
+        await sleep(600);
+
+        // Step 4: Final Risk Assessment
+        updateAnalysisStatus("Calculating comprehensive risk score...");
+        await sleep(400);
+
+        // Show deep analysis results
+        displayDeepAnalysisResults(contentAnalysis, initialThreatData);
+
+        // Update risk score based on deep analysis
+        const finalRiskScore = calculateFinalRiskScore(initialThreatData, contentAnalysis);
+        updateRiskScore(finalRiskScore);
+
+        // Hide analysis section and show results
+        setTimeout(() => {
+            if (analysisSection) analysisSection.style.display = 'none';
+            if (analysisStatus) analysisStatus.style.display = 'none';
+            if (deepAnalysisDiv) deepAnalysisDiv.style.display = 'block';
+        }, 500);
+
+    } catch (error) {
+        console.error('Behavioral analysis error:', error);
+        if (analysisDetails) {
+            analysisDetails.innerHTML = `<span style="color: #ff6b6b;">⚠️ Analysis failed: ${error.message}</span>`;
+        }
+    } finally {
+        analysisInProgress = false;
+    }
+}
+
+// Advanced Safe Content Analysis (Ultra-High Accuracy)
+async function analyzeContentSafely(url) {
+    const analysis = {
+        suspiciousElements: [],
+        maliciousIndicators: [],
+        riskFactors: [],
+        contentWarnings: [],
+        advancedThreats: [],
+        reputationScore: 100
+    };
+
+    try {
+        const urlLower = url.toLowerCase();
+        const urlObj = new URL(url);
+
+        
+        // === ENHANCED FILE TYPE DETECTION ===
+        const dangerousFiles = ['.exe', '.scr', '.bat', '.com', '.pif', '.vbs', '.js', '.jar', '.php', '.asp', '.aspx', '.jsp', '.cgi', '.sh', '.ps1', '.py', '.rb', '.pl'];
+        const suspiciousFiles = ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.zip', '.rar', '.7z', '.tar', '.gz', '.msi', '.deb', '.rpm', '.dmg', '.app', '.pkg'];
+        
+        for (const ext of dangerousFiles) {
+            if (urlLower.includes(ext)) {
+                analysis.maliciousIndicators.push(`🚨 Critical: Executable file detected - ${ext}`);
+                analysis.riskFactors.push(40);
+            }
+        }
+
+        for (const ext of suspiciousFiles) {
+            if (urlLower.includes(ext)) {
+                analysis.suspiciousElements.push(`⚠️ Suspicious document/archive - ${ext}`);
+                analysis.riskFactors.push(20);
+            }
+        }
+
+        // === ADVANCED PHISHING DETECTION ===
+        const highRiskPhishing = [
+            'login', 'signin', 'account', 'verify', 'secure', 'update', 'confirm',
+            'paypal', 'amazon', 'google', 'apple', 'microsoft', 'facebook',
+            'instagram', 'twitter', 'linkedin', 'netflix', 'spotify', 'youtube',
+            'bank', 'payment', 'credit', 'card', 'transaction', 'invoice',
+            ' Wells-fargo', 'chase', 'bankofamerica', 'citibank'
+        ];
+
+        const mediumRiskPhishing = [
+            'support', 'help', 'service', 'admin', 'security', 'protection',
+            'recovery', 'restore', 'unlock', 'activate', 'authenticate'
+        ];
+
+        for (const pattern of highRiskPhishing) {
+            if (urlLower.includes(pattern)) {
+                analysis.maliciousIndicators.push(`🎯 High-risk phishing pattern: ${pattern}`);
+                analysis.riskFactors.push(35);
+            }
+        }
+
+        for (const pattern of mediumRiskPhishing) {
+            if (urlLower.includes(pattern)) {
+                analysis.suspiciousElements.push(`⚡ Medium-risk phishing: ${pattern}`);
+                analysis.riskFactors.push(15);
+            }
+        }
+
+        // === DOMAIN REPUTATION ANALYSIS ===
+        const domain = urlObj.hostname.toLowerCase();
+        
+        // Check for suspicious TLDs
+        const suspiciousTlds = ['.tk', '.ml', '.ga', '.cf', '.gq', '.men', '.click', '.download', '.top', '.loan', '.win', '.vip'];
+        for (const tld of suspiciousTlds) {
+            if (domain.endsWith(tld)) {
+                analysis.suspiciousElements.push(`🌐 Suspicious TLD: ${tld}`);
+                analysis.riskFactors.push(25);
+                analysis.reputationScore -= 20;
+            }
+        }
+
+        // Check for domain impersonation
+        const legitimateDomains = ['paypal.com', 'amazon.com', 'google.com', 'apple.com', 'microsoft.com', 'facebook.com', 'netflix.com'];
+        for (const legit of legitimateDomains) {
+            if (domain.includes(legit) && domain !== legit) {
+                analysis.maliciousIndicators.push(`🎭 Domain impersonation: ${domain} pretending to be ${legit}`);
+                analysis.riskFactors.push(45);
+                analysis.reputationScore -= 30;
+            }
+        }
+
+        // === URL STRUCTURE ANALYSIS ===
+        // Check for excessive subdomains
+        const subdomainCount = domain.split('.').length - 2;
+        if (subdomainCount > 3) {
+            analysis.suspiciousElements.push(`🔗 Excessive subdomains: ${subdomainCount}`);
+            analysis.riskFactors.push(15);
+        }
+
+        // Check for suspicious URL length
+        if (url.length > 200) {
+            analysis.suspiciousElements.push(`📏 Suspiciously long URL: ${url.length} characters`);
+            analysis.riskFactors.push(20);
+        }
+
+        // Check for encoded characters (obfuscation)
+        const encodedPatterns = /%[0-9a-fA-F]{2}/g;
+        const encodedMatches = url.match(encodedPatterns);
+        if (encodedMatches && encodedMatches.length > 5) {
+            analysis.maliciousIndicators.push(`🔐 Heavy URL encoding: ${encodedMatches.length} encoded characters`);
+            analysis.riskFactors.push(30);
+        }
+
+        // === ADVANCED THREAT PATTERNS ===
+        const advancedThreats = [
+            // Social engineering
+            { pattern: /free-?money|cash-?prize|win-?instant|get-?rich|quick-?cash/, risk: 40, desc: 'Social engineering scam' },
+            { pattern: /limited-?time|urgent|expire|act-?now|claim-?now/, risk: 25, desc: 'Urgency tactics' },
+            { pattern: /bitcoin|crypto|ethereum|blockchain|wallet|investment|trading/, risk: 30, desc: 'Cryptocurrency scam' },
+            
+            // Technical threats
+            { pattern: /download-?now|install-?free|update-?required/, risk: 35, desc: 'Malware distribution' },
+            { pattern: /hack|crack|keygen|patch|serial|license/, risk: 45, desc: 'Software piracy/malware' },
+            
+            // Adult/scam content
+            { pattern: /adult|dating|hookup|meet-?singles|cam-?girl/, risk: 20, desc: 'Adult content scam' },
+            
+            // Financial scams
+            { pattern: /loan|credit-?repair|debt|forex|binary|option/, risk: 35, desc: 'Financial scam' }
+        ];
+
+        for (const threat of advancedThreats) {
+            if (threat.pattern.test(urlLower)) {
+                analysis.advancedThreats.push(`⚡ ${threat.desc}`);
+                analysis.riskFactors.push(threat.risk);
+            }
+        }
+
+        // === ENHANCED URL SHORTENER DETECTION ===
+        const shorteners = [
+            'bit.ly', 'tinyurl.com', 'goo.gl', 't.co', 'ow.ly', 'is.gd',
+            'buff.ly', 'adf.ly', 'bit.do', 'mcaf.ee', 'tr.im', 'snip.ly',
+            'cutt.ly', 'short.io', 'tiny.cc', 'clk.im', 'u.to', 'v.gd'
+        ];
+
+        for (const shortener of shorteners) {
+            if (urlLower.includes(shortener)) {
+                analysis.suspiciousElements.push(`🔗 URL shortener: ${shortener} (hides true destination)`);
+                analysis.riskFactors.push(30);
+                analysis.reputationScore -= 15;
+            }
+        }
+
+        // === IP ADDRESS ANALYSIS ===
+        const ipMatch = urlLower.match(/\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/);
+        if (ipMatch) {
+            const ip = ipMatch[0];
+            const parts = ip.split('.').map(Number);
+            
+            // Check for private/internal IPs
+            if (parts[0] === 10 || (parts[0] === 192 && parts[1] === 168) || (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31)) {
+                analysis.maliciousIndicators.push(`🏠 Private IP address: ${ip} (highly suspicious)`);
+                analysis.riskFactors.push(50);
+            } else {
+                analysis.maliciousIndicators.push(`🌐 Direct IP address: ${ip} (bypasses domain security)`);
+                analysis.riskFactors.push(35);
+            }
+            analysis.reputationScore -= 25;
+        }
+
+        // === PORT ANALYSIS ===
+        const portMatch = urlLower.match(/:(\d{1,5})\//);
+        if (portMatch) {
+            const port = parseInt(portMatch[1]);
+            if (port !== 80 && port !== 443 && port !== 8080) {
+                analysis.suspiciousElements.push(`🔌 Non-standard port: ${port}`);
+                analysis.riskFactors.push(20);
+            }
+        }
+
+        // === BEHAVIORAL RISK CALCULATION ===
+        const totalRisk = analysis.riskFactors.reduce((sum, factor) => sum + factor, 0);
+        
+        // Dynamic risk scoring based on multiple factors
+        let finalRisk = Math.min(totalRisk, 100);
+        
+        // Penalty for multiple threat types
+        const threatTypes = [
+            analysis.maliciousIndicators.length > 0,
+            analysis.suspiciousElements.length > 0,
+            analysis.advancedThreats.length > 0
+        ].filter(Boolean).length;
+        
+        if (threatTypes > 2) {
+            finalRisk = Math.min(finalRisk + 20, 100);
+            analysis.contentWarnings.push('🚨 Multiple threat categories detected');
+        }
+
+        // Reputation-based adjustment
+        if (analysis.reputationScore < 50) {
+            finalRisk = Math.min(finalRisk + 15, 100);
+        }
+
+        // === ENHANCED CONTENT WARNINGS ===
+        if (analysis.maliciousIndicators.length > 2) {
+            analysis.contentWarnings.push('🔴 CRITICAL: Multiple high-risk threats detected');
+        } else if (analysis.maliciousIndicators.length > 0) {
+            analysis.contentWarnings.push('🟠 HIGH-RISK: Malicious indicators present');
+        }
+
+        if (analysis.advancedThreats.length > 3) {
+            analysis.contentWarnings.push('⚡ ADVANCED: Sophisticated attack patterns detected');
+        }
+
+        if (finalRisk > 80) {
+}
+
+if (analysis.advancedThreats.length > 3) {
+    analysis.contentWarnings.push('⚡ ADVANCED: Sophisticated attack patterns detected');
+}
+
+if (finalRisk > 80) {
+    analysis.contentWarnings.push('❌ DANGEROUS: Extremely high threat level - DO NOT PROCEED');
+} else if (finalRisk > 60) {
+    analysis.contentWarnings.push('⚠️ WARNING: High probability of malicious content');
+}
+
+analysis.finalRiskScore = finalRisk;
+
+} catch (error) {
+    analysis.contentWarnings.push(`⚠️ Analysis error: ${error.message}`);
+    analysis.riskFactors.push(10);
+}
+
+return analysis;
+}
+
+// Enhanced Display Deep Analysis Results
+function displayDeepAnalysisResults(analysis, initialData) {
+    const deepResults = document.getElementById('cs-deep-results');
+    
+    let html = '<div style="display: flex; flex-direction: column; gap: 12px;">';
+    
+    if (analysis.maliciousIndicators.length > 0) {
+        html += `
+            <div>
+                <div style="color: #ff6b6b; font-weight: 700; font-size: 11px; margin-bottom: 4px;"> MALICIOUS INDICATORS</div>
+                ${analysis.maliciousIndicators.map(ind => 
+                    `<div style="color: #ff9999; font-size: 10px; margin-left: 8px;">• ${ind}</div>`
+                ).join('')}
+            </div>
+        `;
+    }
+
+    if (analysis.suspiciousElements.length > 0) {
+        html += `
+            <div>
+                <div style="color: #ffb300; font-weight: 700; font-size: 11px; margin-bottom: 4px;"> SUSPICIOUS ELEMENTS</div>
+                ${analysis.suspiciousElements.map(elem => 
+                    `<div style="color: #ffcc66; font-size: 10px; margin-left: 8px;">• ${elem}</div>`
+                ).join('')}
+            </div>
+        `;
+    }
+
+    if (analysis.contentWarnings.length > 0) {
+        html += `
+            <div>
+                <div style="color: #00ff88; font-weight: 700; font-size: 11px; margin-bottom: 4px;"> SECURITY WARNINGS</div>
+                ${analysis.contentWarnings.map(warn => 
+                    `<div style="color: #88ffaa; font-size: 10px; margin-left: 8px;">• ${warn}</div>`
+                ).join('')}
+            </div>
+        `;
+    }
+
+    html += `
+        <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.1);">
+            <div style="color: #5a6a8a; font-size: 9px; font-style: italic;">
+                Analysis completed safely without accessing the target
+            </div>
+        </div>
+    </div>`;
+    
+    if (deepResults) deepResults.innerHTML = html;
+}
+
+// Calculate Final Risk Score
+function calculateFinalRiskScore(initialData, analysis) {
+    let baseScore = Math.round((initialData.confidence || 0) * 100);
+    
+    // Add risk factors from deep analysis
+    const additionalRisk = analysis.riskFactors.reduce((sum, factor) => sum + factor, 0);
+    
+    // Calculate final score (cap at 100)
+    let finalScore = Math.min(baseScore + (additionalRisk * 0.3), 100);
+    
+    return Math.round(finalScore);
+}
+
+// Update Risk Score Display
+function updateRiskScore(newScore) {
+    const riskScore = document.getElementById('cs-risk-score');
+    const riskBar = document.getElementById('cs-risk-bar');
+    const headerIcon = document.getElementById('cs-header-icon');
+    
+    if (riskScore) {
+        riskScore.innerHTML = `${newScore}<span style="font-size: 11px; color: #5a6a8a;">/100</span>`;
+    }
+    
+    if (riskBar) {
+        riskBar.style.width = `${newScore}%`;
+        if (newScore > 80) {
+            riskBar.style.background = 'linear-gradient(90deg, #ff0000, #cc0000, #990000)';
+            if (headerIcon) headerIcon.innerHTML = '';
+        } else if (newScore > 60) {
+            riskBar.style.background = 'linear-gradient(90deg, #ff4444, #dc2626)';
+            if (headerIcon) headerIcon.innerHTML = '';
+        }
+    }
+}
+
+// Update Analysis Status
+function updateAnalysisStatus(message) {
+    const analysisDetails = document.getElementById('cs-analysis-details');
+    if (analysisDetails) {
+        analysisDetails.innerHTML = `<span style="color: #00ff88;">${message}</span>`;
+    }
+}
+
+// Helper function for delays
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
