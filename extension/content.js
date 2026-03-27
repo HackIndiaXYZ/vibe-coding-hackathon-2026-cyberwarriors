@@ -1514,14 +1514,15 @@ function showPremiumLinkPopup(url, threatData) {
     popup.style.cssText = `
         background: linear-gradient(145deg, #1a1f2e, #0f1419);
         border: 2px solid ${accentColor};
-        border-radius: 18px;
+        border-radius: 14px;
         padding: 0;
-        max-width: 480px;
-        width: 92%;
-        box-shadow: 0 25px 70px ${accentGlow}, 0 0 140px ${accentColor}33;
+        max-width: 500px;
+        width: 95%;
+        max-height: 85vh;
+        overflow-y: auto;
+        box-shadow: 0 18px 50px ${accentGlow}, 0 0 100px ${accentColor}33;
         animation: cs-slide-up 0.4s cubic-bezier(0.16, 1, 0.3, 1);
         position: relative;
-        overflow: hidden;
     `;
 
     popup.innerHTML = `
@@ -1562,32 +1563,32 @@ function showPremiumLinkPopup(url, threatData) {
             pointer-events: none;
         "></div>
 
-        <div style="padding: 28px 28px 24px; position: relative; z-index: 2;">
+        <div style="padding: 22px 22px 18px; position: relative; z-index: 2;">
             <!-- Header -->
-            <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 20px;">
+            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 14px;">
                 <div id="cs-header-icon" style="
-                    width: 56px;
-                    height: 56px;
-                    border-radius: 16px;
+                    width: 44px;
+                    height: 44px;
+                    border-radius: 12px;
                     background: ${accentDim};
                     border: 2px solid ${accentColor};
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    font-size: 28px;
+                    font-size: 22px;
                     animation: cs-icon-pulse 2s ease-in-out infinite;
                     flex-shrink: 0;
                 ">${threatIcon}</div>
                 <div>
                     <div style="
-                        font-size: 16px;
+                        font-size: 14px;
                         font-weight: 900;
                         color: ${accentColor};
-                        letter-spacing: 1.2px;
+                        letter-spacing: 1px;
                         text-transform: uppercase;
-                        margin-bottom: 4px;
+                        margin-bottom: 2px;
                     ">${threatLabel}</div>
-                    <div style="font-size: 13px; color: #5a6a8a; font-weight: 600;">
+                    <div style="font-size: 11px; color: #8892b0; font-weight: 600;">
                         ⚡ CyberShield Premium Protection
                     </div>
                 </div>
@@ -1598,14 +1599,14 @@ function showPremiumLinkPopup(url, threatData) {
                 background: rgba(0, 255, 136, 0.05);
                 border: 1px solid rgba(0, 255, 136, 0.2);
                 border-radius: 14px;
-                padding: 18px;
-                margin-bottom: 20px;
+                padding: 16px;
+                margin-bottom: 16px;
                 display: none;
             ">
-                <div style="display: flex; align-items: center; gap: 14px; margin-bottom: 14px;">
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
                     <div style="
-                        width: 26px;
-                        height: 26px;
+                        width: 24px;
+                        height: 24px;
                         border: 2px solid #00ff88;
                         border-radius: 50%;
                         display: flex;
@@ -1614,36 +1615,73 @@ function showPremiumLinkPopup(url, threatData) {
                         animation: cs-spin 1s linear infinite;
                     ">
                         <div style="
-                            width: 9px;
-                            height: 9px;
+                            width: 8px;
+                            height: 8px;
                             background: #00ff88;
                             border-radius: 50%;
                         "></div>
                     </div>
-                    <div style="font-size: 14px; font-weight: 700; color: #00ff88;">
+                    <div style="font-size: 13px; font-weight: 700; color: #00ff88;">
                         🔍 BEHAVIORAL ANALYSIS IN PROGRESS
                     </div>
                 </div>
-                <div id="cs-analysis-details" style="font-size: 12px; color: #8892b0; line-height: 1.6;">
+                <div id="cs-analysis-details" style="font-size: 11px; color: #8892b0; line-height: 1.5;">
                     Scanning target content for malicious elements...
                 </div>
             </div>
 
-            <!-- Risk Score -->
+            <!-- Premium Risk Score -->
             <div style="margin-bottom: 20px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                    <span style="font-size: 13px; color: #5a6a8a; letter-spacing: 1.2px; text-transform: uppercase;">Threat Level</span>
-                    <span id="cs-risk-score" style="font-size: 20px; font-weight: 900; color: ${accentColor};">${riskScore}<span style="font-size: 12px; color: #5a6a8a;">/100</span></span>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 13px; color: #5a6a8a; letter-spacing: 1.2px; text-transform: uppercase;">AI Risk Assessment</span>
+                        <div style="
+                            width: 6px;
+                            height: 6px;
+                            border-radius: 50%;
+                            background: ${riskScore > 80 ? '#ff4444' : riskScore > 60 ? '#ffb300' : '#10b981'};
+                            animation: cs-pulse 2s ease-in-out infinite;
+                        "></div>
+                    </div>
+                    <div style="display: flex; align-items: baseline; gap: 6px;">
+                        <span id="cs-risk-score" style="font-size: 22px; font-weight: 900; color: ${accentColor}; text-shadow: 0 0 15px ${accentColor}40; line-height: 1; display: inline;">${riskScore}</span>
+                        <span style="font-size: 13px; color: #8892b0; font-weight: 600; line-height: 1; display: inline;">/100</span>
+                    </div>
                 </div>
-                <div style="height: 10px; background: rgba(255,255,255,0.08); border-radius: 99px; overflow: hidden;">
+                <div style="height: 12px; background: rgba(255,255,255,0.08); border-radius: 99px; overflow: hidden; position: relative; box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);">
                     <div id="cs-risk-bar" style="
                         height: 100%;
                         width: ${riskScore}%;
-                        background: linear-gradient(90deg, ${isScam ? '#ff4444,#dc2626' : '#ffb300,#ff8c00'});
+                        background: linear-gradient(90deg, ${riskScore > 80 ? '#ff0000,#cc0000,#990000' : riskScore > 60 ? '#ff4444,#dc2626,#ff8c00' : '#ffb300,#ffaa00,#ff8800'});
                         border-radius: 99px;
-                        box-shadow: 0 0 25px ${accentColor};
-                        animation: cs-risk-fill 1.2s ease-out;
-                    "></div>
+                        box-shadow: 0 0 30px ${accentColor}, inset 0 1px 0 rgba(255,255,255,0.3);
+                        animation: cs-risk-fill 1.5s cubic-bezier(0.22,1,0.36,1) forwards;
+                        position: relative;
+                        overflow: hidden;
+                    ">
+                        <div style="
+                            position: absolute;
+                            top: 0;
+                            left: 0;
+                            right: 0;
+                            bottom: 0;
+                            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+                            animation: cs-shine 2s ease-in-out infinite;
+                        "></div>
+                    </div>
+                    <!-- Risk Level Markers -->
+                    <div style="position: absolute; top: -2px; left: 0; right: 0; height: 16px; pointer-events: none;">
+                        <div style="position: absolute; left: 30%; top: 0; width: 1px; height: 100%; background: rgba(255,255,255,0.1);"></div>
+                        <div style="position: absolute; left: 60%; top: 0; width: 1px; height: 100%; background: rgba(255,255,255,0.1);"></div>
+                        <div style="position: absolute; left: 80%; top: 0; width: 1px; height: 100%; background: rgba(255,255,255,0.1);"></div>
+                    </div>
+                </div>
+                <!-- Risk Level Labels -->
+                <div style="display: flex; justify-content: space-between; margin-top: 8px; padding: 0 2px;">
+                    <span style="font-size: 10px; color: #10b981; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">LOW</span>
+                    <span style="font-size: 10px; color: #ffb300; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">MEDIUM</span>
+                    <span style="font-size: 10px; color: #ff4444; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">HIGH</span>
+                    <span style="font-size: 10px; color: #ff0000; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">CRITICAL</span>
                 </div>
             </div>
 
@@ -1785,6 +1823,10 @@ function showPremiumLinkPopup(url, threatData) {
         @keyframes cs-spin {
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
+        }
+        @keyframes cs-shine {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
         }
         #cs-go-back:hover {
             transform: translateY(-2px);
@@ -2165,6 +2207,17 @@ async function startBehavioralAnalysis(url, initialThreatData) {
             if (analysisSection) analysisSection.style.display = 'none';
             if (analysisStatus) analysisStatus.style.display = 'none';
             if (deepAnalysisDiv) deepAnalysisDiv.style.display = 'block';
+            
+            // Auto-scroll to action buttons after analysis completes
+            setTimeout(() => {
+                const popupOverlay = document.getElementById('cs-premium-link-popup');
+                if (popupOverlay) {
+                    const popupDiv = popupOverlay.querySelector('div');
+                    if (popupDiv) {
+                        popupDiv.scrollTop = popupDiv.scrollHeight;
+                    }
+                }
+            }, 500);
         }, 500);
 
     } catch (error) {
@@ -2471,29 +2524,78 @@ function calculateFinalRiskScore(initialData, analysis) {
     return Math.round(finalScore);
 }
 
-// Update Risk Score Display
+// Update Risk Score Display - Enhanced Premium Version
 function updateRiskScore(newScore) {
     const riskScore = document.getElementById('cs-risk-score');
     const riskBar = document.getElementById('cs-risk-bar');
     const headerIcon = document.getElementById('cs-header-icon');
     
+    // Determine risk level and colors
+    let riskColor, riskGradient, riskLabel;
+    if (newScore > 80) {
+        riskColor = '#ff4444';
+        riskGradient = 'linear-gradient(90deg, #ff0000,#cc0000,#990000)';
+        riskLabel = 'CRITICAL';
+    } else if (newScore > 60) {
+        riskColor = '#ffb300';
+        riskGradient = 'linear-gradient(90deg, #ff4444,#dc2626,#ff8c00)';
+        riskLabel = 'HIGH';
+    } else if (newScore > 30) {
+        riskColor = '#ffb300';
+        riskGradient = 'linear-gradient(90deg, #ffb300,#ffaa00,#ff8800)';
+        riskLabel = 'MEDIUM';
+    } else {
+        riskColor = '#10b981';
+        riskGradient = 'linear-gradient(90deg, #10b981,#059669,#047857)';
+        riskLabel = 'LOW';
+    }
+    
     if (riskScore) {
-        riskScore.innerHTML = `${newScore}<span style="font-size: 11px; color: #5a6a8a;">/100</span>`;
+        // Enhanced risk score display with glow effect
+        riskScore.textContent = newScore;
+        riskScore.style.color = riskColor;
+        riskScore.style.textShadow = `0 0 20px ${riskColor}40`;
+        
+        // Add pulse animation for high risk
+        if (newScore > 60) {
+            riskScore.style.animation = 'cs-pulse 1.5s ease-in-out infinite';
+        } else {
+            riskScore.style.animation = 'none';
+        }
     }
     
     if (riskBar) {
+        // Update risk bar with enhanced gradient
         riskBar.style.width = `${newScore}%`;
+        riskBar.style.background = riskGradient;
+        riskBar.style.boxShadow = `0 0 30px ${riskColor}, inset 0 1px 0 rgba(255,255,255,0.3)`;
+        
+        // Update shine effect
+        const shineDiv = riskBar.querySelector('div');
+        if (shineDiv) {
+            shineDiv.style.background = 'linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)';
+            shineDiv.style.animation = 'cs-shine 2s ease-in-out infinite';
+        }
+    }
+    
+    // Update header icon based on risk level
+    if (headerIcon) {
         if (newScore > 80) {
-            riskBar.style.background = 'linear-gradient(90deg, #ff0000, #cc0000, #990000)';
-            if (headerIcon) headerIcon.innerHTML = '';
+            headerIcon.innerHTML = '🚨';
+            headerIcon.style.background = 'rgba(255,68,68,0.15)';
+            headerIcon.style.borderColor = '#ff4444';
         } else if (newScore > 60) {
-            riskBar.style.background = 'linear-gradient(90deg, #ff4444, #dc2626)';
-            if (headerIcon) headerIcon.innerHTML = '';
+            headerIcon.innerHTML = '⚠️';
+            headerIcon.style.background = 'rgba(255,179,0,0.15)';
+            headerIcon.style.borderColor = '#ffb300';
+        } else {
+            headerIcon.innerHTML = '🛡️';
+            headerIcon.style.background = 'rgba(16,185,129,0.15)';
+            headerIcon.style.borderColor = '#10b981';
         }
     }
 }
 
-// Update Analysis Status
 function updateAnalysisStatus(message) {
     const analysisDetails = document.getElementById('cs-analysis-details');
     if (analysisDetails) {
