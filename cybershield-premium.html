@@ -171,6 +171,7 @@
   // Initialize dashboard variables
   window._reports = [];
   window._currentFilter = 'all';
+  window._currentTimeFilter = 'all';
   window._selectedThreats = new Set();
   
   // Dashboard Functions
@@ -404,6 +405,267 @@
     console.log('Notification:', message, type);
   }
   
+  function downloadCSV() {
+    const reports = window._reports || [];
+    
+    if (reports.length === 0) {
+      showNotification('No data available to download', 'warning');
+      return;
+    }
+    
+    // Get filtered data based on current filters
+    const searchTerm = document.getElementById('searchBox')?.value.toLowerCase() || '';
+    let filtered = reports;
+    
+    // Apply platform filter
+    if (window._currentFilter !== 'all') {
+      filtered = filtered.filter(r => r.platform === window._currentFilter);
+    }
+    
+    // Apply time filter
+    filtered = filterByTime(filtered);
+    
+    // Apply search filter
+    if (searchTerm) {
+      filtered = filtered.filter(r => 
+        (r.website_url && r.website_url.toLowerCase().includes(searchTerm))
+      );
+    }
+    
+    // Create CSV headers
+    const headers = ['ID', 'URL', 'Threat Type', 'Platform', 'Risk Level', 'Detected At', 'Hash'];
+    
+    // Create CSV data rows
+    const csvData = filtered.map(report => {
+      const classification = classifyThreat(report);
+      const platform = report.platform || detectPlatform(report.website_url || report.url);
+      const url = report.website_url || report.url || 'Unknown URL';
+      const detectedAt = report.detected_at ? fmtTime(report.detected_at) : 'Unknown';
+      
+      return [
+        report.id || '',
+        `"${url}"`,
+        report.threat_type || 'Unknown',
+        platform.toUpperCase(),
+        classification.level,
+        `"${detectedAt}"`,
+        report.hash || ''
+      ];
+    });
+    
+    // Combine headers and data
+    const csvContent = [headers, ...csvData]
+      .map(row => row.join(','))
+      .join('\n');
+    
+    // Create blob and download
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    
+    // Generate filename with timestamp
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const filename = `cybershield-threats-${timestamp}.csv`;
+    
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    link.style.visibility = 'hidden';
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    showNotification(`Downloaded ${filtered.length} threats as CSV`, 'success');
+  }
+  
+  function downloadPDF() {
+    const reports = window._reports || [];
+    
+    if (reports.length === 0) {
+      showNotification('No data available to download', 'warning');
+      return;
+    }
+    
+    // Get filtered data based on current filters
+    const searchTerm = document.getElementById('searchBox')?.value.toLowerCase() || '';
+    let filtered = reports;
+    
+    // Apply platform filter
+    if (window._currentFilter !== 'all') {
+      filtered = filtered.filter(r => r.platform === window._currentFilter);
+    }
+    
+    // Apply time filter
+    filtered = filterByTime(filtered);
+    
+    // Apply search filter
+    if (searchTerm) {
+      filtered = filtered.filter(r => 
+        (r.website_url && r.website_url.toLowerCase().includes(searchTerm))
+      );
+    }
+    
+    // Create PDF content as HTML
+    const timestamp = new Date().toLocaleString();
+    const platform = window._currentFilter === 'all' ? 'All Platforms' : window._currentFilter.toUpperCase();
+    
+    let pdfContent = `
+      <html>
+        <head>
+          <title>CyberShield Premium - Threat Intelligence Report</title>
+          <style>
+            body { 
+              font-family: 'Space Grotesk', sans-serif; 
+              margin: 20px; 
+              color: #333;
+              background: white;
+            }
+            .header { 
+              text-align: center; 
+              border-bottom: 3px solid #00ffcc; 
+              padding-bottom: 20px; 
+              margin-bottom: 30px;
+            }
+            .logo { 
+              font-size: 24px; 
+              font-weight: bold; 
+              color: #00ffcc;
+              margin-bottom: 10px;
+            }
+            .title { 
+              font-size: 28px; 
+              font-weight: bold; 
+              margin-bottom: 10px;
+            }
+            .subtitle { 
+              color: #666; 
+              margin-bottom: 20px;
+            }
+            .meta { 
+              display: flex; 
+              justify-content: space-between; 
+              margin-bottom: 20px;
+              font-size: 14px;
+              color: #666;
+            }
+            table { 
+              width: 100%; 
+              border-collapse: collapse; 
+              margin-top: 20px;
+            }
+            th { 
+              background: #00ffcc; 
+              color: #000; 
+              padding: 12px; 
+              text-align: left; 
+              font-weight: bold;
+              border: 1px solid #00ccaa;
+            }
+            td { 
+              padding: 10px; 
+              border: 1px solid #ddd; 
+              vertical-align: top;
+            }
+            .risk-high { color: #ff0066; font-weight: bold; }
+            .risk-medium { color: #ffaa00; font-weight: bold; }
+            .risk-low { color: #00ff88; font-weight: bold; }
+            .risk-critical { color: #ff0066; font-weight: bold; background: #ffe6f0; }
+            .url { 
+              word-break: break-all; 
+              max-width: 300px;
+              font-size: 12px;
+            }
+            .platform { 
+              text-transform: uppercase; 
+              font-weight: bold;
+              font-size: 12px;
+            }
+            .footer { 
+              margin-top: 30px; 
+              text-align: center; 
+              color: #666; 
+              font-size: 12px;
+              border-top: 1px solid #ddd;
+              padding-top: 20px;
+            }
+            @media print {
+              body { margin: 10px; }
+              .header { page-break-after: always; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div class="logo">🛡️ CYBERSHIELD PREMIUM</div>
+            <div class="title">THREAT INTELLIGENCE REPORT</div>
+            <div class="subtitle">AI-Powered Cybersecurity Analysis</div>
+          </div>
+          
+          <div class="meta">
+            <div><strong>Generated:</strong> ${timestamp}</div>
+            <div><strong>Platform:</strong> ${platform}</div>
+            <div><strong>Total Threats:</strong> ${filtered.length}</div>
+          </div>
+          
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>URL</th>
+                <th>Threat Type</th>
+                <th>Platform</th>
+                <th>Risk Level</th>
+                <th>Detected At</th>
+              </tr>
+            </thead>
+            <tbody>
+    `;
+    
+    // Add table rows
+    filtered.forEach((report, index) => {
+      const classification = classifyThreat(report);
+      const platform = report.platform || detectPlatform(report.website_url || report.url);
+      const url = report.website_url || report.url || 'Unknown URL';
+      const detectedAt = report.detected_at ? fmtTime(report.detected_at) : 'Unknown';
+      const riskClass = classification.level.toLowerCase().replace(' ', '-');
+      
+      pdfContent += `
+        <tr>
+          <td>${index + 1}</td>
+          <td class="url">${url}</td>
+          <td>${report.threat_type || 'Unknown'}</td>
+          <td class="platform">${platform}</td>
+          <td class="risk-${riskClass}">${classification.level}</td>
+          <td>${detectedAt}</td>
+        </tr>
+      `;
+    });
+    
+    pdfContent += `
+            </tbody>
+          </table>
+          
+          <div class="footer">
+            <p>This report was generated by CyberShield Premium AI-Powered Threat Intelligence Platform</p>
+            <p>Report ID: CS-${Date.now()}</p>
+          </div>
+        </body>
+      </html>
+    `;
+    
+    // Create a new window and print
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(pdfContent);
+    printWindow.document.close();
+    
+    // Wait for content to load, then print
+    setTimeout(() => {
+      printWindow.print();
+      printWindow.close();
+      showNotification(`PDF report generated for ${filtered.length} threats`, 'success');
+    }, 500);
+  }
+  
   function setFilt(platform, btn) {
     window._currentFilter = platform;
     document.querySelectorAll('.filt').forEach(b => b.classList.remove('on'));
@@ -411,14 +673,110 @@
     doFilter();
   }
   
+  function toggleDropdown() {
+    document.getElementById("timeDropdown").classList.toggle("show");
+  }
+  
+  function setTimeFilter(timeFilter, element) {
+    window._currentTimeFilter = timeFilter;
+    
+    // Update dropdown button text
+    const dropbtn = document.querySelector('.dropbtn');
+    if (timeFilter === 'all') {
+      dropbtn.innerHTML = '📅 All Time ▼';
+    } else if (timeFilter === 'month') {
+      dropbtn.innerHTML = '📆 Month-wise ▼';
+    } else if (timeFilter === 'week') {
+      dropbtn.innerHTML = '📊 Week-wise ▼';
+    }
+    
+    // Close dropdown
+    document.getElementById("timeDropdown").classList.remove("show");
+    
+    // Apply filter
+    doFilter();
+  }
+  
+  function filterByTime(reports) {
+    if (window._currentTimeFilter === 'all') {
+      return reports;
+    }
+    
+    const now = new Date();
+    const filtered = reports.filter(report => {
+      if (!report.detected_at) return false;
+      
+      let detectedDate;
+      if (report.detected_at.seconds) {
+        detectedDate = new Date(report.detected_at.seconds * 1000);
+      } else if (report.detected_at.toDate) {
+        detectedDate = report.detected_at.toDate();
+      } else {
+        detectedDate = new Date(report.detected_at);
+      }
+      
+      if (isNaN(detectedDate)) return false;
+      
+      if (window._currentTimeFilter === 'month') {
+        // Filter by current month
+        return detectedDate.getMonth() === now.getMonth() && 
+               detectedDate.getFullYear() === now.getFullYear();
+      } else if (window._currentTimeFilter === 'week') {
+        // Filter by current week (last 7 days)
+        const weekAgo = new Date(now.getTime() - (7 * 24 * 60 * 60 * 1000));
+        return detectedDate >= weekAgo;
+      }
+      
+      return true;
+    });
+    
+    return filtered;
+  }
+  
+  function refreshThreats() {
+    // Show loading state
+    const tbody = document.getElementById('mainTable');
+    if (tbody) {
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:50px;color:var(--text-secondary)">
+        <div class="loading-spinner">🔄</div>
+        <h3>REFRESHING THREAT DATA</h3>
+        <p>Fetching latest threat intelligence...</p>
+      </td></tr>`;
+    }
+    
+    // Add rotation animation to refresh button
+    const refreshBtn = document.querySelector('.refresh-btn');
+    if (refreshBtn) {
+      refreshBtn.style.animation = 'spin 1s linear infinite';
+    }
+    
+    // Re-render with current data and filters
+    setTimeout(() => {
+      // Apply all current filters to refresh the view
+      doFilter();
+      
+      // Remove animation from refresh button
+      if (refreshBtn) {
+        refreshBtn.style.animation = '';
+      }
+      
+      showNotification('Threat data refreshed successfully', 'success');
+    }, 1000);
+  }
+  
   function doFilter() {
     const searchTerm = document.getElementById('searchBox')?.value.toLowerCase() || '';
     let filtered = window._reports;
     
+    // Apply platform filter
     if (window._currentFilter !== 'all') {
       filtered = filtered.filter(r => r.platform === window._currentFilter);
     }
     
+    // Apply time filter
+    filtered = filterByTime(filtered);
+    
+    // Apply search filter
     if (searchTerm) {
       filtered = filtered.filter(r => 
         (r.website_url && r.website_url.toLowerCase().includes(searchTerm))
@@ -474,6 +832,19 @@
     initializeFirebase(); // Start Firebase connection
   });
   
+  // Close dropdown when clicking outside
+  window.addEventListener('click', function(event) {
+    if (!event.target.matches('.dropbtn')) {
+      const dropdowns = document.getElementsByClassName("dropdown-content");
+      for (let i = 0; i < dropdowns.length; i++) {
+        const openDropdown = dropdowns[i];
+        if (openDropdown.classList.contains('show')) {
+          openDropdown.classList.remove('show');
+        }
+      }
+    }
+  });
+  
   // Make functions global
   window.toggleAllSelect = toggleAllSelect;
   window.toggleThreatSelection = toggleThreatSelection;
@@ -481,12 +852,18 @@
   window.individualAction = individualAction;
   window.setFilt = setFilt;
   window.doFilter = doFilter;
+  window.toggleDropdown = toggleDropdown;
+  window.setTimeFilter = setTimeFilter;
+  window.filterByTime = filterByTime;
+  window.refreshThreats = refreshThreats;
   window.calculateRiskScore = calculateRiskScore;
   window.classifyThreat = classifyThreat;
   window.renderAll = renderAll;
   window.updateStats = updateStats;
   window.renderTable = renderTable;
   window.showNoDataState = showNoDataState;
+  window.downloadCSV = downloadCSV;
+  window.downloadPDF = downloadPDF;
   
 </script>
 <style>
@@ -762,6 +1139,12 @@ body {
   color: var(--light);
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
 .search-box input {
   background: var(--glass);
   border: 1px solid var(--glass-border);
@@ -770,6 +1153,69 @@ body {
   color: var(--light);
   font-size: 14px;
   width: 300px;
+}
+
+.download-btn {
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  border: none;
+  border-radius: 8px;
+  padding: 10px 20px;
+  color: var(--dark);
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.download-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 255, 204, 0.3);
+}
+
+.pdf-btn {
+  background: linear-gradient(135deg, var(--danger), #ff3366);
+}
+
+.pdf-btn:hover {
+  box-shadow: 0 4px 12px rgba(255, 0, 102, 0.3);
+}
+
+.refresh-btn {
+  background: linear-gradient(135deg, var(--warning), #ffcc00);
+  border: none;
+  border-radius: 8px;
+  padding: 10px 20px;
+  color: var(--dark);
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.refresh-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(255, 170, 0, 0.3);
+}
+
+.refresh-btn:active {
+  transform: rotate(180deg);
+}
+
+.loading-spinner {
+  font-size: 48px;
+  animation: spin 1s linear infinite;
+  margin-bottom: 16px;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 .filter-bar {
@@ -800,6 +1246,64 @@ body {
   background: linear-gradient(135deg, var(--primary), var(--accent));
   color: var(--dark);
   border-color: var(--primary);
+}
+
+/* Dropdown Styles */
+.dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.dropbtn {
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  padding: 8px 16px;
+  color: var(--text);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dropbtn:hover {
+  background: var(--glass-border);
+}
+
+.dropdown-content {
+  display: none;
+  position: absolute;
+  background: var(--dark);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  min-width: 150px;
+  z-index: 1000;
+  top: 100%;
+  left: 0;
+  margin-top: 4px;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+}
+
+.dropdown-content a {
+  color: var(--text);
+  padding: 10px 16px;
+  text-decoration: none;
+  display: block;
+  font-size: 12px;
+  transition: all 0.3s;
+  border-radius: 6px;
+  margin: 2px;
+}
+
+.dropdown-content a:hover {
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  color: var(--dark);
+}
+
+.show {
+  display: block;
 }
 
 /* Table Styles */
@@ -1082,8 +1586,13 @@ td {
   <div class="table-section fade-up">
     <div class="section-header">
       <h2>🔴 LIVE THREAT FEED</h2>
-      <div class="search-box">
-        <input type="text" id="searchBox" placeholder="🔍 Search threats..." onkeyup="doFilter()">
+      <div class="header-actions">
+        <div class="search-box">
+          <input type="text" id="searchBox" placeholder="🔍 Search threats..." onkeyup="doFilter()">
+        </div>
+        <button class="refresh-btn" onclick="refreshThreats()" title="Refresh threat data">🔄 Refresh</button>
+        <button class="download-btn" onclick="downloadCSV()" title="Download threat data as CSV">📥 CSV</button>
+        <button class="download-btn pdf-btn" onclick="downloadPDF()" title="Download threat data as PDF">📄 PDF</button>
       </div>
     </div>
     <div class="filter-bar">
@@ -1092,6 +1601,16 @@ td {
       <button class="filt" onclick="setFilt('whatsapp',this)">💬 WHATSAPP</button>
       <button class="filt" onclick="setFilt('gmail',this)">📧 GMAIL</button>
       <button class="filt" onclick="setFilt('web',this)">🌐 BROWSER</button>
+      
+      <span class="filter-label" style="margin-left: 20px;">Time Filters:</span>
+      <div class="dropdown">
+        <button class="dropbtn" onclick="toggleDropdown()">📅 All Time ▼</button>
+        <div class="dropdown-content" id="timeDropdown">
+          <a href="#" onclick="setTimeFilter('all', this)">📅 All Time</a>
+          <a href="#" onclick="setTimeFilter('month', this)">📆 Month-wise</a>
+          <a href="#" onclick="setTimeFilter('week', this)">📊 Week-wise</a>
+        </div>
+      </div>
     </div>
     <table>
       <thead>
