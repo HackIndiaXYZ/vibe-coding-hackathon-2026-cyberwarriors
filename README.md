@@ -1,5 +1,9 @@
 # CyberShield AI - Advanced Cybersecurity Protection System
 
+**Copyright © 2026 Soundar M & Team. All Rights Reserved.**
+
+*This project is protected by copyright law. Unauthorized use, reproduction, or distribution is prohibited without express written permission.*
+
 ## Executive Summary
 
 **CyberShield AI** is a cutting-edge artificial intelligence-powered cybersecurity system designed to protect individuals and organizations from sophisticated online threats. In today's digital landscape where cyberattacks are becoming increasingly advanced, CyberShield AI serves as an intelligent guardian that automatically detects, analyzes, and blocks malicious content before it can cause harm.
